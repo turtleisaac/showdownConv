@@ -14,11 +14,17 @@ Converts the Smogon/Pokemon Showdown team format to the format used by [hg-engin
 1. Have python installed
 2. If on Linux, use your package manager to install `xclip`, `xsel`, or `wl-clipboard`
 3. Clone/download repo, then navigate to the repo directory in Terminal/cmd and run `pip install -r requirements.txt`
+4. Move `showdownConv.py` into a **NEW FOLDER** named `showdownConv` inside of your cloned hg-engine directory
+    * Do not move the folder it came in into the hg-engine directory because this will just cause annoying git crap for your local hg-engine repo due to invalid VCS mappings
+5. Run the program from its new directory in Terminal/cmd using the `--generate-assets` argument
+   * if you are reading this line, then this isn't done yet so right now the tool only knows Garchomp exists lol
 
 ## Usage
-You must either use `-i` and specify an input file, or use `-ci` and have the input Smogon-formatted team in your clipboard
+The following statement(s) only hold true if you are not using the `-h` or `--generate-assets` arguments:
+* You must either use `-i` and specify an input file, or use `-ci` and have the input Smogon-formatted team in your clipboard
 ```
-usage: showdownConv.py [-h] [-i INPUT] [-ci] [-o OUTPUT] [-co] [-s]
+usage: showdownConv.py [-h] [-i INPUT] [-ci] [-o OUTPUT] [-co]
+                       [--whole-trainer] [-s] [--generate-assets]
 
 showdownConv: Converts Showdown/Smogon trainer format to hg-engine trainer
 format
@@ -31,9 +37,12 @@ optional arguments:
   -o OUTPUT, --output OUTPUT
                         output file
   -co, --clipboard-out  writes Smogon format team(s) to clipboard instead of output file
+  --whole-trainer       writes the data for the entire trainer, not just the party
   -s, --silent          silences output except for errors and result output if -o or -co are not used
+  --generate-assets     generates translation dict needed to get the correct names for hg-engine
 ```
 
 ## Future
 * bug fixes as stuff is brought to my attention
 * feel free to contribute by forking and making PR's!
+* integration into the main hg-engine repo (idk why I didn't do that in the first place...)

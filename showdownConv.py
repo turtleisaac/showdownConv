@@ -9,7 +9,6 @@ As the Smogon/Pokemon Showdown team format does not contain all of the possible 
     https://github.com/BluRosie/hg-engine/wiki/Trainer-Pok%C3%A9mon-Structure-Documentation
 """
 
-
 import sys
 import argparse
 from pathlib import Path
@@ -35,6 +34,20 @@ engine_format = '\t\t// mon %s\n' \
                 '\t\tadditionalflags %s\n' \
                 '\t\tnickname %s\n' \
                 '\t\tballseal 0\n'
+
+trainer_format = 'trainerdata INSERT_NUMBER_HERE\n' \
+                 '\ttrainermontype  %s\n' \
+                 '\ttrainerclass INSERT_CLASS_HERE\n' \
+                 '\tbattletype SINGLE_BATTLE\n' \
+                 '\tnummons %i\n' \
+                 '\titem ITEM_NONE\n' \
+                 '\titem ITEM_NONE\n' \
+                 '\titem ITEM_NONE\n' \
+                 '\titem ITEM_NONE\n' \
+                 '\taiflags INSERT_AI_FLAGS_HERE\n' \
+                 '\tbattletype2 0\n' \
+                 '\tendentry\n\n' \
+                 '\tparty INSERT_NUMBER_HERE\n'
 
 stats = ['hp', 'atk', 'def', 'spe', 'spa', 'spd']
 
@@ -200,12 +213,16 @@ def determine_rules(mons: List[Mon]) -> List[Rule]:
     return rules
 
 
-def convert(mons: List[Mon]) -> str:
+def convert(mons: List[Mon], whole_trainer: bool = False) -> str:
     rules = determine_rules(mons)
     output = ''
-    for rule in rules:
-        output += rule.name + ' | '
-    output += '0\n'
+    if whole_trainer:
+        trainermontype = ''
+        for rule in rules:
+            trainermontype += rule.name + ' | '
+        trainermontype += '0'
+        output += trainer_format % (trainermontype, len(mons))
+
     for idx in range(len(mons)):
         mon = mons[idx]
         lines = str(mon).splitlines(keepends=True)
@@ -221,7 +238,10 @@ def convert(mons: List[Mon]) -> str:
                     or (s.startswith('shinylock') and Rule.TRAINER_DATA_TYPE_SHINY_LOCK not in rules)
                     or (s.startswith('additionalflags') and Rule.TRAINER_DATA_TYPE_ADDITIONAL_FLAGS not in rules)
                     or (s.startswith('nickname') and mon.nickname == '')):
-                new_lines.append(line)
+                if not whole_trainer:
+                    new_lines.append(line[2:])
+                else:
+                    new_lines.append(line)
         if mon.ivs['hp'] == mon.ivs['atk'] == mon.ivs['def'] == mon.ivs['spe'] == mon.ivs['spa'] == mon.ivs['spd']:
             iv = mon.ivs['hp'] * 255 / 31
         else:
@@ -233,6 +253,10 @@ def convert(mons: List[Mon]) -> str:
 
         data = ''.join(new_lines) % (idx, iv, 0, nickname_flag)
         output += data + '\n'
+
+    output = output[:-1]
+    if whole_trainer:
+        output += '\tendparty'
     return output
 
 
@@ -248,8 +272,12 @@ def main(argv: List[str] = None) -> None:
                         help='output file')
     parser.add_argument('-co', '--clipboard-out', action='store_true',
                         help='writes Smogon format team(s) to clipboard instead of output file')
+    parser.add_argument('--whole-trainer', action='store_true',
+                        help='writes the data for the entire trainer, not just the party')
     parser.add_argument('-s', '--silent', action='store_true',
                         help='silences output except for errors and result output if -o or -co are not used')
+    parser.add_argument('--generate-assets', action='store_true',
+                        help='generates translation dict needed to get the correct names for hg-engine\n')
 
     args = parser.parse_args(argv)
 
@@ -258,6 +286,12 @@ def main(argv: List[str] = None) -> None:
     clipboard_in = args.clipboard_in
     clipboard_out = args.clipboard_out
     silent = args.silent
+    whole_trainer = args.whole_trainer
+    generate_assets_flag = args.generate_assets
+
+    if generate_assets_flag:
+        generate_assets()
+        return
 
     if input_file is None and clipboard_in is False:
         parser.error('need to specify an input type (-i or -ci)')
@@ -275,7 +309,7 @@ def main(argv: List[str] = None) -> None:
 
     mons = parse(data, ['Garchomp'])
     process(mons)
-    output = convert(mons)
+    output = convert(mons, whole_trainer)
 
     if not silent:
         print('Conversion success. Output can be found ', end='')
@@ -293,6 +327,10 @@ def main(argv: List[str] = None) -> None:
         if not silent:
             print('below:')
         print(output)
+
+
+def generate_assets():
+    pass
 
 
 if __name__ == '__main__':
