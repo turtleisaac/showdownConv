@@ -214,6 +214,9 @@ def determine_rules(mons: List[Mon]) -> List[Rule]:
 
 
 def convert(mons: List[Mon], whole_trainer: bool = False) -> str:
+    if len(mons) == 0:
+        return 'No valid Smogon-format mons detected\n'
+
     rules = determine_rules(mons)
     output = ''
     if whole_trainer:
@@ -311,6 +314,9 @@ def main(argv: List[str] = None) -> None:
     process(mons)
     output = convert(mons, whole_trainer)
 
+    if output == 'No valid Smogon-format mons detected':
+        parser.error(output)
+
     if not silent:
         print('Conversion success. Output can be found ', end='')
 
@@ -325,7 +331,7 @@ def main(argv: List[str] = None) -> None:
         pc.copy(output)
     elif output_file is None and clipboard_out is False:  # cmd print output (default mode)
         if not silent:
-            print('below:')
+            print('below:\n')
         print(output)
 
 
