@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import List, Optional
 from enum import Enum
 import pyperclip as pc
+import re
 
 engine_format = '\t\t// mon %s\n' \
                 '\t\tivs %s\n' \
@@ -51,6 +52,41 @@ trainer_format = 'trainerdata INSERT_NUMBER_HERE\n' \
 
 stats = ['hp', 'atk', 'def', 'spe', 'spa', 'spd']
 
+IRREGULAR_SPECIES_NAMES = {
+    '-----': 'NONE',
+    'NIDORAN♀': 'NIDORAN_F',
+    'NIDORAN♂': 'NIDORAN_M',
+    'FARFETCH’D': 'FARFETCHD',
+    'FARFETCH’_D': 'FARFETCHD',
+    'MR. MIME': 'MR_MIME',
+    'MR._MIME': 'MR_MIME',
+    'HO-OH': 'HO_OH',
+    'MIME JR.': 'MIME_JR',
+    'MIME_JR.': 'MIMEJR',
+    'PORYGON-Z': 'PORYGON_Z'
+}
+
+IRREGULAR_ABILITIES = {
+    'COMPOUNDEYES': 'COMPOUND_EYES',
+    'LIGHTNINGROD': 'LIGHTNING_ROD',
+}
+
+IRREGULAR_ITEMS = {
+    'KING’S_ROCK': 'KINGS_ROCK',
+    'SILVER_POWDER': 'SILVERPOWDER',
+    'TINY_MUSHROOM': 'TINYMUSHROOM',
+    'TWISTED_SPOON': 'TWISTEDSPOON',
+    'DEEP_SEA_SCALE': 'DEEPSEASCALE',
+    'DEEP_SEA_TOOTH': 'DEEPSEATOOTH',
+    'NEVER_MELT_ICE': 'NEVERMELTICE',
+}
+
+IRREGULAR_MOVES = {
+    'SMOKE_SCREEN': 'SMOKESCREEN',
+    'SELFDESTRUCT': 'SELF_DESTRUCT',
+    'SOFTBOILED': 'SOFT_BOILED',
+}
+
 
 class Rule(Enum):
     TRAINER_DATA_TYPE_MOVES = 0
@@ -71,6 +107,31 @@ for stat in stats:
     default_ivs[stat] = 31
 
 
+def upper_snake_case(s: str) -> str:
+    return '_'.join(
+        re.sub(
+            '([A-Z][a-z]+)',
+            r' \1',
+            re.sub(
+                '([A-Z]+)',
+                r' \1',
+                s.replace('-', ' ')
+            )
+        ).split()
+    ).upper()
+
+
+def sanitize(name: str, sanitation_dict: dict[str, str]) -> str:
+    snake = upper_snake_case(name)
+    if snake == '':
+        return 'NONE'
+
+    if snake in sanitation_dict:
+        return sanitation_dict[snake]
+
+    return snake
+
+
 def format_nickname(name: str) -> str:
     if name == '':
         return ''
@@ -78,7 +139,10 @@ def format_nickname(name: str) -> str:
         name = name[:10]
     s = ''
     for c in name:
-        s += '_%s, ' % c
+        if c.islower() and not c.isnumeric():
+            s += '_%s_, ' % c
+        else:
+            s += '_%s, ' % c
     s += '_endstr, '
     s += '0, ' * (10 - len(name))
     s = s[:-2]
@@ -88,7 +152,7 @@ def format_nickname(name: str) -> str:
 
 class Mon:
     def __init__(self, species, nickname):
-        self.species = species
+        self.species = sanitize(species, IRREGULAR_SPECIES_NAMES)
         self.nickname = nickname
         self.level = 100
         self.item = 'NONE'
@@ -141,7 +205,7 @@ def parse(data: str = '', names: List[str] = None) -> list:
     for line in lines:
         if found_mon:
             if line.startswith('Ability: '):
-                mons[-1].ability = line[9:].strip().upper().replace(' ', '_')
+                mons[-1].ability = sanitize(line[9:].strip().upper(), IRREGULAR_ABILITIES)
             elif 'Nature' in line:
                 mons[-1].nature = line.split(' ')[0].strip().upper()
             elif line.startswith('Level: '):
@@ -153,7 +217,7 @@ def parse(data: str = '', names: List[str] = None) -> list:
             elif line.startswith('IVs: '):
                 mons[-1].iv_temp = line[6:].lower().split(' / ')
             elif line.startswith('- '):  # moves
-                mons[-1].moves.append(line[2:].upper().replace(' ', '_'))
+                mons[-1].moves.append(sanitize(line[2:].upper(), IRREGULAR_MOVES))
             elif line == '':
                 found_mon = False
         else:
@@ -171,7 +235,7 @@ def parse(data: str = '', names: List[str] = None) -> list:
                 num_mons += 1
                 mons.append(Mon(species, nickname))
                 if len(arr) == 2:
-                    mons[-1].item = arr[1].upper()
+                    mons[-1].item = sanitize(arr[1].upper(), IRREGULAR_ITEMS)
             else:
                 continue
 
