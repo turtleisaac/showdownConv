@@ -190,37 +190,45 @@ class Mon:
         return s
 
 
-def parse(data: str = '', names: List[str] = None) -> list:
+def parse(data: str = '', names: List[str] = None) -> List[List[Mon]]:
     data = data.strip()
     if data == '':
         return list()
 
     names = [names[idx].upper() for idx in range(len(names))]
 
-    num_mons = 0
-    mons = list()
+    teams = list()
     lines = data.splitlines()
+
+    multi_teams = data.count('===') > 2
+
+    if not multi_teams:
+        teams.append(list())
 
     found_mon = False
     for line in lines:
         if found_mon:
             if line.startswith('Ability: '):
-                mons[-1].ability = sanitize(line[9:].strip().upper(), IRREGULAR_ABILITIES)
+                teams[-1][-1].ability = sanitize(line[9:].strip().upper(), IRREGULAR_ABILITIES)
             elif 'Nature' in line:
-                mons[-1].nature = line.split(' ')[0].strip().upper()
+                teams[-1][-1].nature = line.split(' ')[0].strip().upper()
             elif line.startswith('Level: '):
-                mons[-1].level = int(line[8:])
+                teams[-1][-1].level = int(line[8:])
             elif line.startswith('Shiny: '):
-                mons[-1].shiny = line[7:] == 'Yes'
+                teams[-1][-1].shiny = line[7:] == 'Yes'
             elif line.startswith('EVs: '):
-                mons[-1].ev_temp = line[6:].lower().split(' / ')
+                teams[-1][-1].ev_temp = line[6:].lower().split(' / ')
             elif line.startswith('IVs: '):
-                mons[-1].iv_temp = line[6:].lower().split(' / ')
+                teams[-1][-1].iv_temp = line[6:].lower().split(' / ')
             elif line.startswith('- '):  # moves
-                mons[-1].moves.append(sanitize(line[2:].upper(), IRREGULAR_MOVES))
+                teams[-1][-1].moves.append(sanitize(line[2:].upper(), IRREGULAR_MOVES))
             elif line == '':
                 found_mon = False
         else:
+            if line.startswith('===') and line.endswith('==='):
+                teams.append(list())
+                continue
+
             arr = line.split(' @ ')
             arr = [arr[idx].strip() for idx in range(len(arr))]
 
@@ -232,21 +240,21 @@ def parse(data: str = '', names: List[str] = None) -> list:
                 nickname = ''
             if species in names:
                 found_mon = True
-                num_mons += 1
-                mons.append(Mon(species, nickname))
+                teams[-1].append(Mon(species, nickname))
                 if len(arr) == 2:
-                    mons[-1].item = sanitize(arr[1].upper(), IRREGULAR_ITEMS)
+                    teams[-1][-1].item = sanitize(arr[1].upper(), IRREGULAR_ITEMS)
             else:
                 continue
 
-    return mons
+    return teams
 
 
-def process(mons: List[Mon], items: List[str] = None, moves: List[str] = None, natures: List[str] = None,
+def process(teams: List[List[Mon]], items: List[str] = None, moves: List[str] = None, natures: List[str] = None,
             abilities: List[str] = None):
-    for idx in range(len(mons)):
-        mon = mons[idx]
-        mon.verify(items, moves, natures, abilities)
+    for idx in range(len(teams)):
+        for sub_idx in range(len(teams[idx])):
+            mon = teams[idx][sub_idx]
+            mon.verify(items, moves, natures, abilities)
 
 
 def determine_rules(mons: List[Mon]) -> List[Rule]:
@@ -277,7 +285,15 @@ def determine_rules(mons: List[Mon]) -> List[Rule]:
     return rules
 
 
-def convert(mons: List[Mon], whole_trainer: bool = False) -> str:
+def convert(teams: List[List[Mon]], whole_trainer: bool = False) -> str:
+    output = ''
+    for team in teams:
+        output += convert_team(team, whole_trainer)
+
+    return output
+
+
+def convert_team(mons: List[Mon], whole_trainer: bool = False) -> str:
     if len(mons) == 0:
         return 'No valid Smogon-format mons detected\n'
 
@@ -374,9 +390,11 @@ def main(argv: List[str] = None) -> None:
     elif input_file is None and clipboard_in:
         data = pc.paste()
 
-    mons = parse(data, ['Garchomp'])
-    process(mons)
-    output = convert(mons, whole_trainer)
+    # todo make it capable of running through a file with multiple teams separated as follows: === TEAM_NAME ===
+    # todo need to make parse return a list of lists of Mons
+    teams = parse(data, ['Garchomp'])
+    process(teams)
+    output = convert(teams, whole_trainer)
 
     if output == 'No valid Smogon-format mons detected':
         parser.error(output)
