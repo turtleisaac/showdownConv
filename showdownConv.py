@@ -189,6 +189,9 @@ class Mon:
         while len(self.moves) < 4:
             self.moves.append('NONE')
 
+        if self.ability == 'NO_ABILITY':
+            self.ability = 'NONE'
+
     def __str__(self):
         s = engine_format % ('%i', '%i', '%i',
                              self.level, self.species, self.item,
@@ -329,7 +332,7 @@ def convert_team(team: Team, whole_trainer: bool = False) -> str:
             s = line.strip()
             if not ((s.startswith('item') and Rule.TRAINER_DATA_TYPE_ITEMS not in rules)
                     or (s.startswith('move') and Rule.TRAINER_DATA_TYPE_MOVES not in rules)
-                    or (s.startswith('ability') and Rule.TRAINER_DATA_TYPE_ABILITY not in rules)
+                    or (s.startswith('ability') and not s.startswith('abilityslot') and Rule.TRAINER_DATA_TYPE_ABILITY not in rules)
                     or (s.startswith('setivs') and Rule.TRAINER_DATA_TYPE_IV_EV_SET not in rules)
                     or (s.startswith('setevs') and Rule.TRAINER_DATA_TYPE_IV_EV_SET not in rules)
                     or (s.startswith('nature') and Rule.TRAINER_DATA_TYPE_NATURE_SET not in rules)
@@ -410,8 +413,6 @@ def main(argv: List[str] = None) -> None:
     elif input_file is None and clipboard_in:
         data = pc.paste()
 
-    # todo make it capable of running through a file with multiple teams separated as follows: === TEAM_NAME ===
-    # todo need to make parse return a list of lists of Mons
     teams = parse(data)
     process(teams)
     output = convert(teams, whole_trainer)
