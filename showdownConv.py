@@ -36,7 +36,7 @@ engine_format = '\t\t// mon %s\n' \
                 '\t\tnickname %s\n' \
                 '\t\tballseal 0\n'
 
-trainer_format = 'trainerdata INSERT_NUMBER_HERE\n' \
+trainer_format = 'trainerdata %s // %s\n' \
                  '\ttrainermontype  %s\n' \
                  '\ttrainerclass INSERT_CLASS_HERE\n' \
                  '\tbattletype SINGLE_BATTLE\n' \
@@ -150,6 +150,16 @@ def format_nickname(name: str) -> str:
     return s
 
 
+class Team:
+    def __init__(self, name='INSERT_NAME_HERE', id='INSERT_NUMBER_HERE'):
+        self.mons = list()
+        if '[' in name and ']' in name:
+            self.name = name[name.index(']')+1:].strip()
+        else:
+            self.name = name
+        self.id = id
+
+
 class Mon:
     def __init__(self, species, nickname):
         self.species = sanitize(species, IRREGULAR_SPECIES_NAMES)
@@ -169,13 +179,15 @@ class Mon:
         self.ev_temp = list()
         self.iv_temp = list()
 
-    def verify(self, items: List[str] = None, moves: List[str] = None, natures: List[str] = None,
-               abilities: List[str] = None):
+    def verify(self):
         for ev in self.ev_temp:
             self.evs[ev.split(' ')[1]] = int(ev.split(' ')[0])
 
         for iv in self.iv_temp:
             self.ivs[iv.split(' ')[1]] = int(iv.split(' ')[0])
+
+        while len(self.moves) < 4:
+            self.moves.append('NONE')
 
     def __str__(self):
         s = engine_format % ('%i', '%i', '%i',
@@ -190,12 +202,10 @@ class Mon:
         return s
 
 
-def parse(data: str = '', names: List[str] = None) -> List[List[Mon]]:
+def parse(data: str = '') -> List[Team]:
     data = data.strip()
     if data == '':
         return list()
-
-    names = [names[idx].upper() for idx in range(len(names))]
 
     teams = list()
     lines = data.splitlines()
@@ -203,58 +213,62 @@ def parse(data: str = '', names: List[str] = None) -> List[List[Mon]]:
     multi_teams = data.count('===') > 2
 
     if not multi_teams:
-        teams.append(list())
+        teams.append(Team())
 
     found_mon = False
     for line in lines:
         if found_mon:
             if line.startswith('Ability: '):
-                teams[-1][-1].ability = sanitize(line[9:].strip().upper(), IRREGULAR_ABILITIES)
+                teams[-1].mons[-1].ability = sanitize(line[9:].strip().upper(), IRREGULAR_ABILITIES)
             elif 'Nature' in line:
-                teams[-1][-1].nature = line.split(' ')[0].strip().upper()
+                teams[-1].mons[-1].nature = line.split(' ')[0].strip().upper()
             elif line.startswith('Level: '):
-                teams[-1][-1].level = int(line[8:])
+                teams[-1].mons[-1].level = int(line[8:])
             elif line.startswith('Shiny: '):
-                teams[-1][-1].shiny = line[7:] == 'Yes'
+                teams[-1].mons[-1].shiny = line[7:] == 'Yes'
             elif line.startswith('EVs: '):
-                teams[-1][-1].ev_temp = line[6:].lower().split(' / ')
+                teams[-1].mons[-1].ev_temp = line[5:].lower().split(' / ')
             elif line.startswith('IVs: '):
-                teams[-1][-1].iv_temp = line[6:].lower().split(' / ')
+                teams[-1].mons[-1].iv_temp = line[5:].lower().split(' / ')
             elif line.startswith('- '):  # moves
-                teams[-1][-1].moves.append(sanitize(line[2:].upper(), IRREGULAR_MOVES))
+                teams[-1].mons[-1].moves.append(sanitize(line[2:].upper(), IRREGULAR_MOVES))
             elif line == '':
                 found_mon = False
         else:
             if line.startswith('===') and line.endswith('==='):
-                teams.append(list())
+                md = line.replace('===', '').strip()
+                if line.count('[') == 2:
+                    teams.append(Team(md[:md.rindex('[')].strip(), md[md.rindex('[')+1:md.rindex(']')].strip()))
+                else:
+                    teams.append(Team(md))
                 continue
 
-            arr = line.split(' @ ')
-            arr = [arr[idx].strip() for idx in range(len(arr))]
+            if line != '':
+                arr = line.split(' @ ')
+                arr = [arr[idx].strip() for idx in range(len(arr))]
 
-            if '(' in arr[0] and ')' in arr[0]:
-                species = arr[0][arr[0].index('(') + 1:arr[0].index(')')].upper().strip()
-                nickname = arr[0][:arr[0].index('(')].strip()
-            else:
-                species = arr[0].upper()
-                nickname = ''
-            if species in names:
+                if '(' in arr[0] and ')' in arr[0]:
+                    species = arr[0][arr[0].index('(') + 1:arr[0].index(')')].upper().strip()
+                    nickname = arr[0][:arr[0].index('(')].strip()
+                else:
+                    species = arr[0].upper()
+                    nickname = ''
+
                 found_mon = True
-                teams[-1].append(Mon(species, nickname))
+                teams[-1].mons.append(Mon(species, nickname))
                 if len(arr) == 2:
-                    teams[-1][-1].item = sanitize(arr[1].upper(), IRREGULAR_ITEMS)
-            else:
-                continue
+                    teams[-1].mons[-1].item = sanitize(arr[1].upper(), IRREGULAR_ITEMS)
+                else:
+                    continue
 
     return teams
 
 
-def process(teams: List[List[Mon]], items: List[str] = None, moves: List[str] = None, natures: List[str] = None,
-            abilities: List[str] = None):
+def process(teams: List[Team]):
     for idx in range(len(teams)):
-        for sub_idx in range(len(teams[idx])):
-            mon = teams[idx][sub_idx]
-            mon.verify(items, moves, natures, abilities)
+        for sub_idx in range(len(teams[idx].mons)):
+            mon = teams[idx].mons[sub_idx]
+            mon.verify()
 
 
 def determine_rules(mons: List[Mon]) -> List[Rule]:
@@ -285,7 +299,7 @@ def determine_rules(mons: List[Mon]) -> List[Rule]:
     return rules
 
 
-def convert(teams: List[List[Mon]], whole_trainer: bool = False) -> str:
+def convert(teams: List[Team], whole_trainer: bool = False) -> str:
     output = ''
     for team in teams:
         output += convert_team(team, whole_trainer)
@@ -293,7 +307,8 @@ def convert(teams: List[List[Mon]], whole_trainer: bool = False) -> str:
     return output
 
 
-def convert_team(mons: List[Mon], whole_trainer: bool = False) -> str:
+def convert_team(team: Team, whole_trainer: bool = False) -> str:
+    mons = team.mons
     if len(mons) == 0:
         return 'No valid Smogon-format mons detected\n'
 
@@ -304,7 +319,7 @@ def convert_team(mons: List[Mon], whole_trainer: bool = False) -> str:
         for rule in rules:
             trainermontype += rule.name + ' | '
         trainermontype += '0'
-        output += trainer_format % (trainermontype, len(mons))
+        output += trainer_format % (team.id, team.name,trainermontype, len(mons))
 
     for idx in range(len(mons)):
         mon = mons[idx]
@@ -334,12 +349,17 @@ def convert_team(mons: List[Mon], whole_trainer: bool = False) -> str:
         else:
             nickname_flag = '0'
 
-        data = ''.join(new_lines) % (idx, iv, 0, nickname_flag)
+        data = ''.join(new_lines)
+
+        if Rule.TRAINER_DATA_TYPE_ADDITIONAL_FLAGS in rules:
+            data = data % (idx, iv, 0, nickname_flag)
+        else:
+            data = data % (idx, iv, 0)
         output += data + '\n'
 
     output = output[:-1]
     if whole_trainer:
-        output += '\tendparty'
+        output += '\tendparty\n\n'
     return output
 
 
@@ -392,7 +412,7 @@ def main(argv: List[str] = None) -> None:
 
     # todo make it capable of running through a file with multiple teams separated as follows: === TEAM_NAME ===
     # todo need to make parse return a list of lists of Mons
-    teams = parse(data, ['Garchomp'])
+    teams = parse(data)
     process(teams)
     output = convert(teams, whole_trainer)
 
