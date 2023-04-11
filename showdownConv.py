@@ -382,8 +382,8 @@ def main(argv: List[str] = None) -> None:
                         help='writes the data for the entire trainer, not just the party')
     parser.add_argument('-s', '--silent', action='store_true',
                         help='silences output except for errors and result output if -o or -co are not used')
-    parser.add_argument('--generate-assets', action='store_true',
-                        help='generates translation dict needed to get the correct names for hg-engine\n')
+    # parser.add_argument('--generate-assets', action='store_true',
+    #                     help='generates translation dict needed to get the correct names for hg-engine\n')
 
     args = parser.parse_args(argv)
 
