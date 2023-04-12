@@ -16,20 +16,19 @@ Converts the Smogon/Pokemon Showdown team format to the format used by [hg-engin
 3. Clone/download repo, then navigate to the repo directory in Terminal/cmd and run `pip install -r requirements.txt`
 
 ## Usage
-The following statement(s) only hold true if you are not using the `-h` argument:
-* You must either use `-i` and specify an input file, or use `-ci` and have the input Smogon-formatted team in your clipboard
+* If no arguments are provided when ran from Terminal/cmd, input is read from your clipboard and output is written in Terminal/cmd
+  * If ran inside an IDE, it will likely think it is being run via double-clicking. In which case, just run it from Terminal/cmd within your IDE.
+* If ran by double-clicking showdownConv.py, input is read from your clipboard and output is written to your clipboard
+  * The input text read from your clipboard will be written to the file `last_input.txt` as a backup
 ```
-usage: showdownConv.py [-h] [-i INPUT] [-ci] [-o OUTPUT] [-co]
-                       [--whole-trainer] [-s]
+usage: showdownConv.py [-h] [-i INPUT] [-o OUTPUT] [-co] [--whole-trainer] [-s]
 
-showdownConv: Converts Showdown/Smogon trainer format to hg-engine trainer
-format
+showdownConv: Converts Showdown/Smogon trainer format to hg-engine trainer format
 
 optional arguments:
   -h, --help            show this help message and exit
   -i INPUT, --input INPUT
-                        input file containing Smogon-format team(s) - must use if -ci is not specified.
-  -ci, --clipboard-in   reads Smogon format team(s) from clipboard instead of input file - must use if -i is not specified
+                        input file containing Smogon-format team(s) - clipboard is used as input if omitted
   -o OUTPUT, --output OUTPUT
                         output file
   -co, --clipboard-out  writes Smogon format team(s) to clipboard instead of output file

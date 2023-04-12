@@ -48,7 +48,7 @@ trainer_format = 'trainerdata %s // %s\n' \
                  '\taiflags INSERT_AI_FLAGS_HERE\n' \
                  '\tbattletype2 0\n' \
                  '\tendentry\n\n' \
-                 '\tparty INSERT_NUMBER_HERE\n'
+                 '\tparty %s\n'
 
 stats = ['hp', 'atk', 'def', 'spe', 'spa', 'spd']
 
@@ -322,7 +322,7 @@ def convert_team(team: Team, whole_trainer: bool = False) -> str:
         for rule in rules:
             trainermontype += rule.name + ' | '
         trainermontype += '0'
-        output += trainer_format % (team.id, team.name,trainermontype, len(mons))
+        output += trainer_format % (team.id, team.name, trainermontype, len(mons), team.id)
 
     for idx in range(len(mons)):
         mon = mons[idx]
@@ -371,9 +371,9 @@ def main(argv: List[str] = None) -> None:
         description='showdownConv: Converts Showdown/Smogon trainer format to hg-engine trainer format')
 
     parser.add_argument('-i', '--input', type=Path,
-                        help='input file containing Smogon-format team(s) - must use if -ci is not specified. ')
-    parser.add_argument('-ci', '--clipboard-in', action='store_true',
-                        help='reads Smogon format team(s) from clipboard instead of input file - must use if -i is not specified')
+                        help='input file containing Smogon-format team(s) - clipboard is used as input if omitted')
+    # parser.add_argument('-ci', '--clipboard-in', action='store_true',
+    #                     help='reads Smogon format team(s) from clipboard instead of input file - must use if -i is not specified')
     parser.add_argument('-o', '--output', type=Path,
                         help='output file')
     parser.add_argument('-co', '--clipboard-out', action='store_true',
@@ -389,29 +389,29 @@ def main(argv: List[str] = None) -> None:
 
     input_file = args.input
     output_file = args.output
-    clipboard_in = args.clipboard_in
     clipboard_out = args.clipboard_out
     silent = args.silent
     whole_trainer = args.whole_trainer
-    generate_assets_flag = args.generate_assets
+    # generate_assets_flag = args.generate_assets
 
-    if generate_assets_flag:
-        generate_assets()
-        return
+    in_command_line = False
+    if sys.stdin and sys.stdin.isatty():
+        in_command_line = True
 
-    if input_file is None and clipboard_in is False:
-        parser.error('need to specify an input type (-i or -ci)')
+    # if generate_assets_flag:
+    #     generate_assets()
+    #     return
 
-    if input_file is not None and clipboard_in:
-        parser.error('specify either -i or -ci, not both')
     if output_file is not None and clipboard_out:
         parser.error('specify either -o or -co, not both')
 
-    if input_file is not None and clipboard_in is False:
+    if input_file is not None:
         with open(input_file, 'r') as f:
             data = f.read()
-    elif input_file is None and clipboard_in:
+    elif input_file is None:
         data = pc.paste()
+        with open('last_input.txt', 'w') as f:
+            f.write(data)
 
     teams = parse(data)
     process(teams)
@@ -428,11 +428,11 @@ def main(argv: List[str] = None) -> None:
             print('at: %s' % output_file)
         with open(output_file, 'w') as f:
             f.write(output)
-    elif output_file is None and clipboard_out:  # copy to clipboard
+    elif (output_file is None and clipboard_out) or not in_command_line:  # copy to clipboard (default mode when double-clicked)
         if not silent:
             print('in your clipboard.')
         pc.copy(output)
-    elif output_file is None and clipboard_out is False:  # cmd print output (default mode)
+    elif output_file is None and clipboard_out is False:  # cmd print output (default mode in terminal/cmd)
         if not silent:
             print('below:\n')
         print(output)
