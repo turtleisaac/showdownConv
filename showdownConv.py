@@ -226,7 +226,7 @@ def parse(data: str = '') -> List[Team]:
             elif 'Nature' in line:
                 teams[-1].mons[-1].nature = line.split(' ')[0].strip().upper()
             elif line.startswith('Level: '):
-                teams[-1].mons[-1].level = int(line[8:])
+                teams[-1].mons[-1].level = int(line[7:])
             elif line.startswith('Shiny: '):
                 teams[-1].mons[-1].shiny = line[7:] == 'Yes'
             elif line.startswith('EVs: '):
