@@ -36,6 +36,9 @@ optional arguments:
   -s, --silent          silences output except for errors and result output if -o or -co are not used
 ```
 
+### Parsing Multiple Teams
+If you want to parse multiple teams at once, Showdown can export all teams with each separated by a line that starts and ends with `===` and has the team name in between. You can specify the trainer ID by including the number in the trainer name itself as shown in the following example: `Red [260]`
+
 ## Future
 * bug fixes as stuff is brought to my attention
 * feel free to contribute by forking and making PR's!
