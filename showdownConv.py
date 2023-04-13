@@ -14,8 +14,14 @@ import argparse
 from pathlib import Path
 from typing import List, Optional
 from enum import Enum
+from xmlrpc.client import boolean
 import pyperclip as pc
 import re
+import tkinter as tk
+import tkinter as tk
+import tkinter.messagebox as msgBox
+import tkinter.font as tkFont
+from tkinter.scrolledtext import ScrolledText
 
 engine_format = '\t\t// mon %s\n' \
                 '\t\tivs %s\n' \
@@ -28,7 +34,8 @@ engine_format = '\t\t// mon %s\n' \
                 '\t\tmove MOVE_%s\n' \
                 '\t\tmove MOVE_%s\n' \
                 '\t\tability ABILITY_%s\n' \
-                '\t\tsetivs %i, %i, %i, %i, %i, %i // hp, atk, def, spd, spatk, spdef\n' \
+                '\t\tsetivs %i, %i, %i, %i, %i, %i\n' \
+                '\t\t// hp, atk, def, spd, spatk, spdef\n' \
                 '\t\tsetevs %i, %i, %i, %i, %i, %i\n' \
                 '\t\tnature NATURE_%s\n' \
                 '\t\tshinylock %i\n' \
@@ -370,6 +377,9 @@ def main(argv: List[str] = None) -> None:
     parser = argparse.ArgumentParser(
         description='showdownConv: Converts Showdown/Smogon trainer format to hg-engine trainer format')
 
+    parser.add_argument('-ui', '--ui', action='store_true', default=False,
+                        help='input file containing Smogon-format team(s) - clipboard is used as input if omitted')
+
     parser.add_argument('-i', '--input', type=Path,
                         help='input file containing Smogon-format team(s) - clipboard is used as input if omitted')
     # parser.add_argument('-ci', '--clipboard-in', action='store_true',
@@ -386,7 +396,8 @@ def main(argv: List[str] = None) -> None:
     #                     help='generates translation dict needed to get the correct names for hg-engine\n')
 
     args = parser.parse_args(argv)
-
+    if args.ui:
+        launch_ui()
     input_file = args.input
     output_file = args.output
     clipboard_out = args.clipboard_out
@@ -437,6 +448,89 @@ def main(argv: List[str] = None) -> None:
             print('below:\n')
         print(output)
 
+class ShowdownConvUI:
+    def __init__(self, root):
+        #setting title
+        root.title("Showdown Convertor UI")
+        #setting window size
+        width=800
+        height=500
+        screenwidth = root.winfo_screenwidth()
+        screenheight = root.winfo_screenheight()
+        alignstr = '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2)
+        root.geometry(alignstr)
+        root.resizable(width=False, height=False)
+
+        self.ShowdownText= ScrolledText(root, wrap=tk.WORD)
+        self.ShowdownText["bg"] = "#ffffff"
+        ft = tkFont.Font(family='Times',size=10)
+        self.ShowdownText["font"] = ft
+        self.ShowdownText["fg"] = "#333333"
+        self.ShowdownText.place(x=20,y=25,width=250,height=450)
+
+        self.HGEngineText=ScrolledText(root, wrap=tk.WORD)
+        self.HGEngineText["bg"] = "#fcfcfc"
+        ft = tkFont.Font(family='Times',size=10)
+        self.HGEngineText["font"] = ft
+        self.HGEngineText["fg"] = "#333333"
+        self.HGEngineText["relief"] = "sunken"
+        self.HGEngineText.place(x=410,y=25,width=350,height=450)
+
+        self.WholeTrainer = tk.IntVar()
+        TrainerCheck=tk.Checkbutton(root)
+        ft = tkFont.Font(family='Times',size=10)
+        TrainerCheck["font"] = ft
+        TrainerCheck["fg"] = "#333333"
+        TrainerCheck["justify"] = "center"
+        TrainerCheck["text"] = "Whole Trainer?"
+        TrainerCheck.place(x=290,y=150,width=100,height=30)
+        TrainerCheck["offvalue"] = "0"
+        TrainerCheck["onvalue"] = "1"
+        TrainerCheck["variable"] = self.WholeTrainer
+
+
+        ToHGEngine=tk.Button(root)
+        ToHGEngine["bg"] = "#f0f0f0"
+        ft = tkFont.Font(family='Times',size=10)
+        ToHGEngine["font"] = ft
+        ToHGEngine["fg"] = "#000000"
+        ToHGEngine["justify"] = "center"
+        ToHGEngine["text"] = "To hg-engine >"
+        ToHGEngine.place(x=290,y=100,width=100,height=30)
+        ToHGEngine["command"] = self.ToHGEngine_command
+
+        ToShowdown=tk.Button(root)
+        ToShowdown["bg"] = "#f0f0f0"
+        ft = tkFont.Font(family='Times',size=10)
+        ToShowdown["font"] = ft
+        ToShowdown["fg"] = "#000000"
+        ToShowdown["justify"] = "center"
+        ToShowdown["text"] = "< To showdown"
+        #ToShowdown.place(x=250,y=400,width=100,height=30)
+        ToShowdown["command"] = self.ToShowdown_command
+
+    def ToHGEngine_command(self):
+        data = self.ShowdownText.get('1.0', tk.END)
+
+        teams = parse(data)
+        process(teams)
+        output = convert(teams, self.WholeTrainer.get())
+
+        if output == 'No valid Smogon-format mons detected':
+            msgBox.showerror("Error", output)        
+        else:
+            self.HGEngineText.delete('1.0', tk.END)
+            self.HGEngineText.insert(tk.INSERT, output)
+        
+
+    def ToShowdown_command(self):
+        print("command")
+
+
+def launch_ui():
+    root = tk.Tk()
+    app = ShowdownConvUI(root)
+    root.mainloop()
 
 def generate_assets():
     pass
